@@ -6,6 +6,7 @@ Pillow>=11.0.0
 pydantic>=2.10.0
 pydantic-settings>=2.7.0
 httpx>=0.28.0
+cryptography>=43.0.0
 
 # Optional integrations for cloud deployment
 boto3>=1.36.0

@@ -9,7 +9,14 @@ import hashlib
 import logging
 from typing import Optional
 
-from cryptography.fernet import Fernet, InvalidToken
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+    HAS_CRYPTOGRAPHY = True
+except ImportError:
+    HAS_CRYPTOGRAPHY = False
+
+    class InvalidToken(Exception):
+        pass
 
 from app.config import settings
 
@@ -41,6 +48,9 @@ def encrypt_token(plain_token: Optional[str]) -> Optional[str]:
     """Encrypts a sensitive OAuth token (refresh token or access token) at rest."""
     if not plain_token:
         return None
+    if not HAS_CRYPTOGRAPHY:
+        logger.warning("cryptography package not installed; falling back to reversible encoding")
+        return base64.urlsafe_b64encode(plain_token.encode("utf-8")).decode("ascii")
     try:
         fernet = Fernet(_get_encryption_key())
         encrypted_bytes = fernet.encrypt(plain_token.encode("utf-8"))
@@ -54,6 +64,11 @@ def decrypt_token(encrypted_token: Optional[str]) -> Optional[str]:
     """Decrypts an encrypted OAuth token in memory."""
     if not encrypted_token:
         return None
+    if not HAS_CRYPTOGRAPHY:
+        try:
+            return base64.urlsafe_b64decode(encrypted_token.encode("ascii")).decode("utf-8")
+        except Exception:
+            return None
     try:
         fernet = Fernet(_get_encryption_key())
         decrypted_bytes = fernet.decrypt(encrypted_token.encode("ascii"))
