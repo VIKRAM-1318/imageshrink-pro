@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | ImageShrink Pro</title>
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(18, 18, 22, 0.85); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .tab-btn.active { background: #4f46e5; color: white; }
+  </style>
+</head>
+<body class="bg-[#09090B] text-zinc-100 min-h-screen flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="glass sticky top-0 z-40 border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+          <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="font-extrabold text-sm tracking-tight text-white flex items-center gap-2">
+            ImageShrink Pro <span class="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">ADMIN CONTROL</span>
+          </div>
+          <p class="text-[10px] text-zinc-400 font-mono">Session: {{ADMIN_EMAIL}} ({{ADMIN_ROLE}})</p>
+        </div>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="flex items-center space-x-4">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Security Guard Active</span>
+        </div>
+        <button onclick="openChangePasswordModal()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1.5">
+          <i data-lucide="key" class="w-3.5 h-3.5"></i> Change Password
+        </button>
+        <form action="/admin/logout" method="POST" class="inline">
+          <input type="hidden" name="csrf_token" value="{{CSRF_TOKEN}}">
+          <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition flex items-center gap-1.5">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <!-- DASHBOARD MAIN -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- NAVIGATION TABS -->
+    <div class="flex flex-wrap items-center gap-2 p-1.5 bg-zinc-900/80 rounded-2xl border border-zinc-800/80 max-w-2xl">
+      <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn active px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview
+      </button>
+      <button onclick="switchTab('users')" id="tab-users" class="tab-btn px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition flex items-center gap-2">
+        <i data-lucide="users" class="w-4 h-4"></i> User Management
+      </button>
+      <button onclick="switchTab('batches')" id="tab-batches" class="tab-btn px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition flex items-center gap-2">
+        <i data-lucide="layers" class="w-4 h-4"></i> Batch Activity
+      </button>
+      <button onclick="switchTab('audit')" id="tab-audit" class="tab-btn px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition flex items-center gap-2">
+        <i data-lucide="file-text" class="w-4 h-4"></i> Security Audit Logs
+      </button>
+      <button onclick="switchTab('config')" id="tab-config" class="tab-btn px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition flex items-center gap-2">
+        <i data-lucide="settings" class="w-4 h-4"></i> Configuration
+      </button>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: OVERVIEW & ANALYTICS -->
+    <!-- ======================================================== -->
+    <section id="section-overview" class="space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="glass p-5 rounded-2xl border border-zinc-800 space-y-2">
+          <span class="text-xs text-zinc-400 block">Total Registered Users</span>
+          <h3 id="stat-total-users" class="text-3xl font-black text-white">--</h3>
+          <span class="text-[10px] text-indigo-400 font-mono">Active SaaS Accounts</span>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-zinc-800 space-y-2">
+          <span class="text-xs text-zinc-400 block">Active Subscribers</span>
+          <h3 id="stat-active-subs" class="text-3xl font-black text-emerald-400">--</h3>
+          <span class="text-[10px] text-zinc-500 font-mono">Pro & Business Tiers</span>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-zinc-800 space-y-2">
+          <span class="text-xs text-zinc-400 block">Storage Handled</span>
+          <h3 id="stat-storage-bytes" class="text-3xl font-black text-indigo-400">--</h3>
+          <span id="stat-storage-saved" class="text-[10px] text-emerald-400 font-mono">-- saved</span>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-zinc-800 space-y-2">
+          <span class="text-xs text-zinc-400 block">Total Revenue</span>
+          <h3 id="stat-revenue" class="text-3xl font-black text-white">$0.00</h3>
+          <span class="text-[10px] text-zinc-500 font-mono">Stripe & Razorpay</span>
+        </div>
+      </div>
+
+      <!-- System Health Metrics Card -->
+      <div class="glass p-6 rounded-2xl border border-zinc-800 space-y-4">
+        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Engine & Worker Health
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 bg-zinc-950/60 rounded-xl border border-zinc-800/80 space-y-1">
+            <span class="text-zinc-400 block text-[11px]">Worker Concurrency</span>
+            <span class="font-bold text-white text-base">8 Workers Active</span>
+            <p class="text-[10px] text-zinc-500">ThreadPool executor processing batch jobs</p>
+          </div>
+          <div class="p-4 bg-zinc-950/60 rounded-xl border border-zinc-800/80 space-y-1">
+            <span class="text-zinc-400 block text-[11px]">Active Jobs in Queue</span>
+            <span id="stat-active-jobs" class="font-bold text-indigo-400 text-base">0 Processing</span>
+            <p class="text-[10px] text-zinc-500">Real-time status synchronization</p>
+          </div>
+          <div class="p-4 bg-zinc-950/60 rounded-xl border border-zinc-800/80 space-y-1">
+            <span class="text-zinc-400 block text-[11px]">Failed Images Rate</span>
+            <span id="stat-failed-images" class="font-bold text-rose-400 text-base">0 Failures</span>
+            <p class="text-[10px] text-zinc-500">Per-file error isolation active</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: USER MANAGEMENT -->
+    <!-- ======================================================== -->
+    <section id="section-users" class="space-y-4 hidden">
+      <div class="glass rounded-2xl border border-zinc-800 overflow-hidden">
+        <div class="p-4 border-b border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h3 class="text-sm font-bold text-white">Registered Customer Accounts</h3>
+            <p class="text-xs text-zinc-400">Search, suspend, or update customer subscription tiers.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input 
+              type="text" 
+              id="user-search-input" 
+              placeholder="Search by email..." 
+              oninput="searchUsers(this.value)"
+              class="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 w-60"
+            />
+            <button onclick="loadUsers()" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-zinc-300">
+            <thead class="bg-zinc-950/70 text-zinc-500 uppercase tracking-wider font-mono text-[10px]">
+              <tr>
+                <th class="p-3.5">Email</th>
+                <th class="p-3.5">Full Name</th>
+                <th class="p-3.5">Plan</th>
+                <th class="p-3.5">Account Status</th>
+                <th class="p-3.5">Created</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body" class="divide-y divide-zinc-800/60">
+              <tr>
+                <td colspan="6" class="p-6 text-center text-zinc-500 italic">Loading registered accounts...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: BATCH ACTIVITY -->
+    <!-- ======================================================== -->
+    <section id="section-batches" class="space-y-4 hidden">
+      <div class="glass rounded-2xl border border-zinc-800 overflow-hidden">
+        <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+          <div>
+            <h3 class="text-sm font-bold text-white">Recent Batch Processing Jobs</h3>
+            <p class="text-xs text-zinc-400">Inspect batch completion states, savings, and storage retention.</p>
+          </div>
+          <button onclick="loadBatches()" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-zinc-300">
+            <thead class="bg-zinc-950/70 text-zinc-500 uppercase tracking-wider font-mono text-[10px]">
+              <tr>
+                <th class="p-3.5">Batch ID</th>
+                <th class="p-3.5">Files</th>
+                <th class="p-3.5">Mode</th>
+                <th class="p-3.5">Original / Optimized</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Created</th>
+                <th class="p-3.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table-body" class="divide-y divide-zinc-800/60">
+              <tr>
+                <td colspan="7" class="p-6 text-center text-zinc-500 italic">Loading batch activity...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: SECURITY AUDIT LOGS -->
+    <!-- ======================================================== -->
+    <section id="section-audit" class="space-y-4 hidden">
+      <div class="glass rounded-2xl border border-zinc-800 overflow-hidden">
+        <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i> Tamper-Evident Admin Audit Trail
+            </h3>
+            <p class="text-xs text-zinc-400">Detailed records of logins, lockouts, password updates, and administrative events.</p>
+          </div>
+          <button onclick="loadAuditLogs()" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-zinc-300 font-mono text-[11px]">
+            <thead class="bg-zinc-950/70 text-zinc-500 uppercase tracking-wider text-[10px]">
+              <tr>
+                <th class="p-3.5">Timestamp</th>
+                <th class="p-3.5">Action</th>
+                <th class="p-3.5">Admin</th>
+                <th class="p-3.5">IP Address</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body" class="divide-y divide-zinc-800/60 font-mono">
+              <tr>
+                <td colspan="6" class="p-6 text-center text-zinc-500 italic font-sans">Loading audit records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: SYSTEM CONFIGURATION & SECURITY -->
+    <!-- ======================================================== -->
+    <section id="section-config" class="space-y-6 hidden">
+      <div class="glass p-6 rounded-2xl border border-zinc-800 space-y-6">
+        <div>
+          <h3 class="text-base font-bold text-white">Active System & Security Configuration</h3>
+          <p class="text-xs text-zinc-400">Enforced environment settings and security thresholds.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <div class="space-y-4 p-4 bg-zinc-950/60 rounded-xl border border-zinc-800">
+            <h4 class="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">Authentication & Protection</h4>
+            <div class="space-y-2 text-zinc-300">
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Session Cookie Name</span>
+                <span class="font-mono text-zinc-200">isp_admin_session</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Cookie Flags</span>
+                <span class="font-mono text-emerald-400">HttpOnly=True, SameSite=Lax</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Session Duration</span>
+                <span class="font-mono text-zinc-200">4 Hours</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Brute-Force Lockout</span>
+                <span class="font-mono text-amber-400">5 failed attempts / 15m lockout</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-zinc-500">CSRF Defense</span>
+                <span class="font-mono text-emerald-400">HMAC-SHA256 Token Enforced</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4 p-4 bg-zinc-950/60 rounded-xl border border-zinc-800">
+            <h4 class="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">Limits & Retention</h4>
+            <div class="space-y-2 text-zinc-300">
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Max File Size</span>
+                <span class="font-mono text-zinc-200">35 MB strictly enforced</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Batch Concurrency Limit</span>
+                <span class="font-mono text-zinc-200">500 files per batch</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Decompression Bomb Limit</span>
+                <span class="font-mono text-zinc-200">100 Megapixels max</span>
+              </div>
+              <div class="flex justify-between border-b border-zinc-800/60 pb-2">
+                <span class="text-zinc-500">Storage Retention</span>
+                <span class="font-mono text-zinc-200">24-hour temporary file purge</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-zinc-500">Public API Documentation</span>
+                <span class="font-mono text-rose-400">Disabled (Hidden)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: CHANGE ADMIN PASSWORD -->
+  <!-- ======================================================== -->
+  <div id="modal-change-password" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="key" class="w-4 h-4 text-indigo-400"></i> Update Administrator Password
+        </h4>
+        <button onclick="closeChangePasswordModal()" class="text-zinc-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="pwd-modal-alert" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+
+      <form id="change-pwd-form" onsubmit="handleChangePasswordSubmit(event)" class="space-y-4 text-xs">
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-300">Current Password</label>
+          <input type="password" id="current-pwd" required class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-300">New Password (Min 12 chars, Upper, Lower, Number, Special)</label>
+          <input type="password" id="new-pwd" minlength="12" required class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-300">Confirm New Password</label>
+          <input type="password" id="confirm-pwd" minlength="12" required class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <button type="submit" id="btn-save-pwd" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition">
+          Update & Invalidate Prior Sessions
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const CSRF_TOKEN = "{{CSRF_TOKEN}}";
+    lucide.createIcons();
+
+    // Initial Load
+    document.addEventListener("DOMContentLoaded", () => {
+      loadOverview();
+      loadUsers();
+      loadBatches();
+      loadAuditLogs();
+    });
+
+    function switchTab(tabName) {
+      ['overview', 'users', 'batches', 'audit', 'config'].forEach(t => {
+        document.getElementById(`section-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).classList.remove('active', 'text-white');
+        document.getElementById(`tab-${t}`).classList.add('text-zinc-400');
+      });
+      document.getElementById(`section-${tabName}`).classList.remove('hidden');
+      document.getElementById(`tab-${tabName}`).classList.add('active', 'text-white');
+      document.getElementById(`tab-${tabName}`).classList.remove('text-zinc-400');
+      lucide.createIcons();
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+    }
+
+    async function loadOverview() {
+      try {
+        const resp = await fetch('/admin/api/overview');
+        if (resp.ok) {
+          const data = await resp.json();
+          document.getElementById('stat-total-users').textContent = data.total_users || 0;
+          document.getElementById('stat-active-subs').textContent = data.active_subscribers || 0;
+          document.getElementById('stat-revenue').textContent = `$${(data.total_revenue_usd || 0).toFixed(2)}`;
+          document.getElementById('stat-active-jobs').textContent = `${data.active_processing_jobs || 0} Processing`;
+          document.getElementById('stat-failed-images').textContent = `${data.failed_images_total || 0} Failures`;
+
+          const handledBytes = (data.storage?.uploads_bytes || 0) + (data.storage?.optimized_bytes || 0);
+          document.getElementById('stat-storage-bytes').textContent = formatBytes(handledBytes);
+          document.getElementById('stat-storage-saved').textContent = `${formatBytes(data.storage?.all_time_saved_bytes || 0)} (${data.storage?.all_time_savings_percent || 0}%) saved`;
+        }
+      } catch (err) {
+        console.error("Overview error:", err);
+      }
+    }
+
+    async function loadUsers(search = "") {
+      try {
+        const url = search ? `/admin/api/users?search=${encodeURIComponent(search)}` : '/admin/api/users';
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const users = await resp.json();
+          const tbody = document.getElementById('users-table-body');
+          if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-zinc-500 italic">No customer accounts found matching criteria.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = users.map(u => `
+            <tr class="hover:bg-zinc-900/40 transition">
+              <td class="p-3.5 font-medium text-white">${u.email}</td>
+              <td class="p-3.5 text-zinc-400">${u.full_name || '--'}</td>
+              <td class="p-3.5">
+                <span class="px-2 py-0.5 rounded font-mono text-[10px] uppercase ${u.plan === 'business' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : u.plan === 'pro' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-zinc-800 text-zinc-400'}">${u.plan}</span>
+              </td>
+              <td class="p-3.5">
+                <span class="inline-flex items-center gap-1.5 ${u.is_active ? 'text-emerald-400' : 'text-rose-400'}">
+                  <span class="w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+                  ${u.is_active ? 'Active' : 'Suspended'}
+                </span>
+              </td>
+              <td class="p-3.5 text-zinc-500 text-[11px]">${new Date(u.created_at * 1000).toLocaleDateString()}</td>
+              <td class="p-3.5 text-right space-x-2">
+                <button onclick="toggleUserStatus('${u.id}', ${!u.is_active}, '${u.plan}')" class="px-2.5 py-1 rounded-lg ${u.is_active ? 'bg-rose-600/10 hover:bg-rose-600/20 text-rose-400' : 'bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400'} font-semibold text-[10px] transition">
+                  ${u.is_active ? 'Suspend' : 'Activate'}
+                </button>
+              </td>
+            </tr>
+          `).join('');
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error("Users error:", err);
+      }
+    }
+
+    let searchTimeout = null;
+    function searchUsers(val) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => loadUsers(val), 300);
+    }
+
+    async function toggleUserStatus(userId, newActive, plan) {
+      if (!confirm(`Are you sure you want to ${newActive ? 'activate' : 'suspend'} this user?`)) return;
+      try {
+        const resp = await fetch(`/admin/api/users/${userId}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN,
+          },
+          body: JSON.stringify({ is_active: newActive, plan: plan })
+        });
+        if (resp.ok) {
+          loadUsers();
+          loadOverview();
+        } else {
+          alert('Failed to update user status.');
+        }
+      } catch (e) {
+        alert('Network error.');
+      }
+    }
+
+    async function loadBatches() {
+      try {
+        const resp = await fetch('/admin/api/batches');
+        if (resp.ok) {
+          const batches = await resp.json();
+          const tbody = document.getElementById('batches-table-body');
+          if (batches.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-zinc-500 italic">No batches processed yet.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = batches.map(b => `
+            <tr class="hover:bg-zinc-900/40 transition">
+              <td class="p-3.5 font-mono text-[10px] text-zinc-300">${b.id.slice(0, 8)}...</td>
+              <td class="p-3.5 font-mono">${b.processed_files}/${b.total_files}</td>
+              <td class="p-3.5 font-mono uppercase text-[10px] text-indigo-400">${b.mode}</td>
+              <td class="p-3.5 font-mono text-[11px]">${formatBytes(b.total_original_size)} &rarr; ${formatBytes(b.total_optimized_size)}</td>
+              <td class="p-3.5">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${b.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${b.status}</span>
+              </td>
+              <td class="p-3.5 text-zinc-500 text-[11px]">${new Date(b.created_at * 1000).toLocaleString()}</td>
+              <td class="p-3.5 text-right">
+                <button onclick="deleteBatch('${b.id}')" class="p-1.5 text-zinc-500 hover:text-rose-400 transition" title="Delete Batch">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </td>
+            </tr>
+          `).join('');
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error("Batches error:", err);
+      }
+    }
+
+    async function deleteBatch(batchId) {
+      if (!confirm('Permanently delete this batch and stored files?')) return;
+      try {
+        const resp = await fetch(`/admin/api/batches/${batchId}`, {
+          method: 'DELETE',
+          headers: { 'X-CSRF-Token': CSRF_TOKEN }
+        });
+        if (resp.ok) {
+          loadBatches();
+          loadOverview();
+        }
+      } catch (e) {
+        alert('Failed to delete batch.');
+      }
+    }
+
+    async function loadAuditLogs() {
+      try {
+        const resp = await fetch('/admin/api/logs');
+        if (resp.ok) {
+          const logs = await resp.json();
+          const tbody = document.getElementById('audit-table-body');
+          if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-zinc-500 italic font-sans">No audit records found.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = logs.map(l => `
+            <tr class="hover:bg-zinc-900/40 transition">
+              <td class="p-3.5 text-zinc-500">${new Date(l.created_at * 1000).toLocaleString()}</td>
+              <td class="p-3.5 font-bold text-zinc-200">${l.action}</td>
+              <td class="p-3.5 text-zinc-400">${l.admin_email || l.admin_username || 'SYSTEM'}</td>
+              <td class="p-3.5 text-zinc-500">${l.ip_address}</td>
+              <td class="p-3.5">
+                <span class="px-1.5 py-0.5 rounded text-[10px] ${l.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400' : l.status === 'WARNING' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}">${l.status}</span>
+              </td>
+              <td class="p-3.5 text-zinc-400 truncate max-w-xs" title="${l.details_json || ''}">${l.details_json || '--'}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error("Audit log error:", err);
+      }
+    }
+
+    // Change Password Modal
+    function openChangePasswordModal() {
+      document.getElementById('modal-change-password').classList.remove('hidden');
+      document.getElementById('pwd-modal-alert').classList.add('hidden');
+      document.getElementById('change-pwd-form').reset();
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('modal-change-password').classList.add('hidden');
+    }
+
+    async function handleChangePasswordSubmit(e) {
+      e.preventDefault();
+      const current = document.getElementById('current-pwd').value;
+      const newPwd = document.getElementById('new-pwd').value;
+      const confirmPwd = document.getElementById('confirm-pwd').value;
+      const alertBox = document.getElementById('pwd-modal-alert');
+
+      if (newPwd !== confirmPwd) {
+        alertBox.className = "p-3 rounded-xl text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-400";
+        alertBox.textContent = "New passwords do not match.";
+        alertBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-pwd');
+      btn.disabled = true;
+      btn.textContent = "Updating Password...";
+
+      try {
+        const resp = await fetch('/admin/api/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN,
+          },
+          body: JSON.stringify({ current_password: current, new_password: newPwd })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          alertBox.className = "p-3 rounded-xl text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400";
+          alertBox.textContent = data.message + " Redirecting to log in...";
+          alertBox.classList.remove('hidden');
+          setTimeout(() => {
+            window.location.href = "/admin/login";
+          }, 1200);
+        } else {
+          alertBox.className = "p-3 rounded-xl text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-400";
+          alertBox.textContent = data.message || data.detail || "Password change failed.";
+          alertBox.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = "Update & Invalidate Prior Sessions";
+        }
+      } catch (err) {
+        alertBox.className = "p-3 rounded-xl text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-400";
+        alertBox.textContent = "Connection error.";
+        alertBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = "Update & Invalidate Prior Sessions";
+      }
+    }
+  </script>
+</body>
+</html>
+

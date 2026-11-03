@@ -1,0 +1,2 @@
+"""ImageShrink Pro Application Package."""
+
