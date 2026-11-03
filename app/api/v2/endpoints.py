@@ -195,7 +195,7 @@ async def get_google_oauth_url():
     return {"url": url, "state": state, "configured": google_oauth_service.is_configured()}
 
 
-@router.post("/auth/google/callback", response_model=TokenResponse)
+@router.get("/auth/google/callback", response_model=TokenResponse)
 async def google_oauth_callback(req: GoogleAuthCallbackRequest, request: Request):
     """Exchanges Google authorization code, links or creates user account, signs in user."""
     client_ip = request.client.host if request.client else "127.0.0.1"
