@@ -1,5 +1,5 @@
 # Multi-stage production Dockerfile for ImageShrink Pro V2
-FROM python:3.10-slim-bullseye AS base
+FROM python:3.10-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,14 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies for imaging (libjpeg-turbo, zlib, libpng, libwebp)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies for imaging (libjpeg-turbo, zlib, libpng, libwebp, libtiff)
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential \
     libjpeg-dev \
     zlib1g-dev \
     libpng-dev \
     libwebp-dev \
-    libtiff5-dev \
+    libtiff-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,4 +39,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
-
