@@ -84,9 +84,9 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
 
     # ── Google OAuth ─────────────────────────────────────────────────────
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v2/auth/google/callback"
+    GOOGLE_CLIENT_ID: str = "262793722171-e27naqtnkq5av8io197a0inumvmivjg5.apps.googleusercontent.com"
+    GOOGLE_CLIENT_SECRET: str = "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"
+    GOOGLE_REDIRECT_URI: str = "https://imageshrink-pro.onrender.com/api/v2/auth/google/callback"
 
     # ── Upload Limits ────────────────────────────────────────────────────
     MAX_FILE_SIZE_MB: int = 35
