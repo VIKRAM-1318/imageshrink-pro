@@ -31,8 +31,10 @@ jobs:
         pip install pytest pytest-asyncio
 
     - name: Run automated test suite
+      env:
+        PYTHONPATH: .
       run: |
-        pytest -v tests/
+        python -m pytest -v tests/
 
     - name: Build Docker image
       run: |
