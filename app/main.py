@@ -82,6 +82,13 @@ def on_startup():
     storage.cleanup_old_files(max_age_seconds=settings.JOB_TTL_SECONDS)
 
 
+@app.get("/healthz")
+@app.get("/health")
+def health_check():
+    """Lightweight 24/7 uptime healthcheck endpoint."""
+    return {"status": "healthy", "service": "imageshrink-pro", "timestamp": time.time()}
+
+
 @app.get("/", response_class=HTMLResponse)
 def root_view():
     """Serves the public ImageShrink Pro V2 application."""

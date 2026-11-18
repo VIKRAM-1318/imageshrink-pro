@@ -1,0 +1,17 @@
+name: 24/7 Keep-Alive Uptime Pinger
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Runs automatically every 10 minutes to prevent server sleep
+  workflow_dispatch:        # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Live Server
+        env:
+          TARGET_URL: ${{ vars.PRODUCTION_URL || 'https://imageshrink-pro.onrender.com/healthz' }}
+        run: |
+          echo "Pinging $TARGET_URL to ensure 24/7 zero-downtime uptime..."
+          curl -sS --max-time 20 -I "$TARGET_URL" || true
