@@ -29,12 +29,13 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Query,
     Request,
     Response,
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
 from app.config import settings
 from app.database import db_session
@@ -195,13 +196,12 @@ async def get_google_oauth_url():
     return {"url": url, "state": state, "configured": google_oauth_service.is_configured()}
 
 
-@router.get("/auth/google/callback", response_model=TokenResponse)
-async def google_oauth_callback(req: GoogleAuthCallbackRequest, request: Request):
-    """Exchanges Google authorization code, links or creates user account, signs in user."""
+def _process_google_code(code: str, request: Request) -> Dict[str, Any]:
+    """Exchanges Google authorization code, links or creates user account, returns tokens and profile."""
     client_ip = request.client.host if request.client else "127.0.0.1"
     user_agent = request.headers.get("user-agent", "Unknown")
 
-    google_data = google_oauth_service.exchange_code_for_user_info(req.code)
+    google_data = google_oauth_service.exchange_code_for_user_info(code)
     if not google_data or not google_data.get("email"):
         raise HTTPException(status_code=400, detail="Google authentication failed or was cancelled.")
 
@@ -281,6 +281,103 @@ async def google_oauth_callback(req: GoogleAuthCallbackRequest, request: Request
             "is_verified": True,
         },
     }
+
+
+@router.get("/auth/google/callback", response_class=HTMLResponse)
+async def google_oauth_callback_get(
+    request: Request,
+    code: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+):
+    """
+    Handles browser navigation redirect from Google OAuth consent screen (HTTP GET).
+    Authenticates user, sets session token into client localStorage, and redirects to studio.
+    """
+    if error or not code:
+        err_msg = error or "Authorization code not provided by Google."
+        return HTMLResponse(
+            content=f"""<!DOCTYPE html>
+            <html>
+            <head><title>Google Sign-In Error</title><meta charset="utf-8"></head>
+            <body style="background:#09090b;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;">
+              <div style="text-align:center;max-width:440px;padding:32px;background:#18181b;border:1px solid #27272a;border-radius:16px;">
+                <h3 style="color:#ef4444;margin-bottom:8px;">Google Sign-In Failed</h3>
+                <p style="font-size:14px;color:#a1a1aa;line-height:1.6;">{err_msg}</p>
+                <a href="/" style="display:inline-block;margin-top:20px;padding:8px 16px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">Return to Studio</a>
+              </div>
+            </body>
+            </html>""",
+            status_code=400,
+        )
+
+    try:
+        token_data = _process_google_code(code=code, request=request)
+        access_token = token_data["access_token"]
+        full_name = token_data["user"]["full_name"] or token_data["user"]["email"]
+
+        return HTMLResponse(
+            content=f"""<!DOCTYPE html>
+            <html>
+            <head>
+              <title>Signing in...</title>
+              <meta charset="utf-8">
+            </head>
+            <body style="background:#09090b;color:#e4e4e7;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;">
+              <div style="text-align:center;max-width:440px;padding:32px;background:#18181b;border:1px solid #27272a;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                <div style="width:48px;height:48px;margin:0 auto 16px;border-radius:12px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;color:#818cf8;font-size:24px;">✓</div>
+                <h3 style="color:#fff;margin:0 0 8px;font-size:18px;">Signed in as {full_name}</h3>
+                <p style="font-size:13px;color:#a1a1aa;margin:0 0 20px;">Loading your ImageShrink workspace...</p>
+                <div style="height:3px;background:#27272a;border-radius:2px;overflow:hidden;width:100%;">
+                  <div style="height:100%;background:#6366f1;width:100%;animation:shimmer 1.5s infinite;"></div>
+                </div>
+              </div>
+              <script>
+                try {{
+                  localStorage.setItem('isp_token', '{access_token}');
+                }} catch (e) {{}}
+                window.location.href = '/#workspace';
+              </script>
+            </body>
+            </html>"""
+        )
+    except HTTPException as e:
+        detail = e.detail if isinstance(e.detail, str) else "Google Sign-In failed."
+        return HTMLResponse(
+            content=f"""<!DOCTYPE html>
+            <html>
+            <head><title>Sign-In Error</title><meta charset="utf-8"></head>
+            <body style="background:#09090b;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;">
+              <div style="text-align:center;max-width:440px;padding:32px;background:#18181b;border:1px solid #27272a;border-radius:16px;">
+                <h3 style="color:#ef4444;margin-bottom:8px;">Sign-In Error</h3>
+                <p style="font-size:14px;color:#a1a1aa;line-height:1.6;">{detail}</p>
+                <a href="/" style="display:inline-block;margin-top:20px;padding:8px 16px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">Return to Studio</a>
+              </div>
+            </body>
+            </html>""",
+            status_code=e.status_code,
+        )
+    except Exception as e:
+        return HTMLResponse(
+            content="""<!DOCTYPE html>
+            <html>
+            <head><title>Authentication Error</title><meta charset="utf-8"></head>
+            <body style="background:#09090b;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;">
+              <div style="text-align:center;max-width:440px;padding:32px;background:#18181b;border:1px solid #27272a;border-radius:16px;">
+                <h3 style="color:#ef4444;margin-bottom:8px;">Authentication Error</h3>
+                <p style="font-size:14px;color:#a1a1aa;line-height:1.6;">An unexpected error occurred during Google authentication.</p>
+                <a href="/" style="display:inline-block;margin-top:20px;padding:8px 16px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">Return to Studio</a>
+              </div>
+            </body>
+            </html>""",
+            status_code=500,
+        )
+
+
+@router.post("/auth/google/callback", response_model=TokenResponse)
+async def google_oauth_callback(req: GoogleAuthCallbackRequest, request: Request):
+    """Exchanges Google authorization code via POST for API and headless clients."""
+    return _process_google_code(code=req.code, request=request)
 
 
 @router.get("/auth/me", response_model=UserProfileResponse)
